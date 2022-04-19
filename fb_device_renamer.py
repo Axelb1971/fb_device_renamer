@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# regex IP identifier  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}
 
 from webdriver_manager.chrome import ChromeDriverManager # pip install webdriver-manager
 from selenium import webdriver # pip install selenium
@@ -9,6 +10,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import sys
+import re
 import dns.resolver # pip install dnspython
 import dns.reversename
 from bs4 import BeautifulSoup # pip install beautifulsoup4  https://www.crummy.com/software/BeautifulSoup/bs4/doc/
@@ -40,6 +42,8 @@ fbuser = config.get("FritzBox","fbuser")
 fbpasswd = config.get("FritzBox","fbpasswd")
 
 dnsserver = config.get("Hostname_source","dnsserver")
+fb_hosts_name = config.get('Hostname_source','hostsfile')
+resolve_order = config.get('Hostname_source','order')
 
 exclude_hosts = config.get("Exclude_hosts","exclude_hosts")
 
@@ -50,6 +54,24 @@ my_log("loglevel: {}".format(loglevel),1)
 my_resolver = dns.resolver.Resolver()
 my_resolver.nameservers = [dnsserver]
 
+# digest for hosts with IP address as index from hosts file
+local_hosts = {}
+
+# read content of hosts file and create hashtable with IP addresses as index
+if "hostsfile" in resolve_order:
+    fb_hosts_f = open(fb_hosts_name, "r")
+    for line in fb_hosts_f:
+        ip_host = re.match("([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\s+([a-zA-Z0-9\-\.]+)",line)
+        if (bool(ip_host)):
+            ip = ip_host.group(1)
+            host = ip_host.group(2)
+            local_hosts[ip] = host
+            my_log("hosts entry: {} {}".format(ip,host),2)
+        else:
+            my_log("no host entry: {}".format(line.strip()),2)
+
+    fb_hosts_f.close
+
 # initialize webdriver
 driver = webdriver.Chrome(ChromeDriverManager().install())
 
@@ -57,10 +79,6 @@ driver = webdriver.Chrome(ChromeDriverManager().install())
 driver.get('http://'+fbip)
 driver.set_window_size(window_size_x, window_size_y)
 driver.implicitly_wait(implicitlyWait)
-
-# Testseite aus File, um die Testgeschwindigkeit zu erhöhen
-"""with open("page_source.html") as fp:
-    soup = BeautifulSoup(fp, 'html.parser')"""
 
 # Login Procedure
 # choose user to login
@@ -104,10 +122,10 @@ my_log('IPs of active and passive connections stored',2)
 act_pas_ips=active.find_all(prefid="ip") + passive.find_all(prefid="ip")
 
 # Auskommentieren, um den gesamten HTML Code in ein File zu schreiben
-if (loglevel>=3):
-    fileToWrite = open("debug_page_source", "w")
-    fileToWrite.write(pageSource)
-    fileToWrite.close()
+# if (loglevel>=3):
+#     fileToWrite = open("debug_page_source", "w")
+#     fileToWrite.write(pageSource)
+#     fileToWrite.close()
 
 # Auslesen aller aktiven Verbindungen und schreiben in eine Datei für Debugzwecke über selenium und nicht pagesource
 if (loglevel>=3):
@@ -155,26 +173,35 @@ for act_pas in act_pas_ips:
                 sys.exit(2)
 
         # Device name within FritzBox
-        name = act_pas.parent.find(prefid="name")['title']
+        fb_dev_name = act_pas.parent.find(prefid="name")['title']
 
-        # DNS resolve IP address
+        # resolve IP address to DNS or hostsfile
         if (len(ip)>0):
-            query_results = my_resolver.resolve(dns.reversename.from_address(ip),'PTR')
-            dnsname = query_results[0].to_text().split('.')[0]
-            if (dnsname != name and len(dnsname)>0):
+            if "hostsfile" in resolve_order:
+                try:
+                    newname = local_hosts[ip]
+                except:
+                    newname = fb_dev_name 
+
+            if "dnsserver" in resolve_order:
+                if resolve_order.split()[0] == "dnsserver" or len(newname) == 0:
+                    query_results = my_resolver.resolve(dns.reversename.from_address(ip),'PTR')
+                    newname = query_results[0].to_text().split('.')[0]
+
+            if (newname != fb_dev_name and len(newname)>0):
                 # IP address has a different name in the Fritzbox than in DNS - so change it later
                 hosts_edit_ip.append(ip)
-                hosts_edit_dns.append(dnsname)
-                my_log('edit: IP: {} FB-Name: {} DNS: {}'.format(ip,name,dnsname),2)
+                hosts_edit_dns.append(newname)
+                my_log('edit: IP: {} FB-Name: {} DNS: {}'.format(ip,fb_dev_name,newname),2)
             else:
-                my_log('no change: IP: {} FB-Name: {} DNS: {}'.format(ip,name,dnsname),2)
+                my_log('no change: IP: {} FB-Name: {} DNS: {}'.format(ip,fb_dev_name,newname),2)
 
     except NoSuchElementException:
         break
 
 # some statistics
-my_log('len of Array hosts_edit_ip {}'.format(len(hosts_edit_ip)),2)
-my_log('len of Array hosts_edit_dns {}'.format(len(hosts_edit_dns)),2)
+my_log('len of array hosts_edit_ip {}'.format(len(hosts_edit_ip)),2)
+my_log('len of array hosts_edit_dns {}'.format(len(hosts_edit_dns)),2)
 
 # change FritzBox device names to DNS names
 for i in range(0,len(hosts_edit_ip),1):
