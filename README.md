@@ -1,5 +1,5 @@
 # fb_device_renamer
-Rename devices of a FritzBox to local DNS names
+Rename devices of a FritzBox to local DNS or host names.
 
 This python script uses Selenium Webdriver to interact with the FritzBox. As browser google chrome is added.
 
