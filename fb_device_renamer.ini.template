@@ -1,0 +1,21 @@
+[general]
+window_size_x = 1136
+window_size_y = 692
+implicitlywait = 60
+networktablewait = 60
+alertwait = 120
+
+[FritzBox]
+fbip = 192.168.0.1
+fbuser = user
+fbpasswd = secret
+
+[Hostname_source]
+dnsserver = 192.168.0.2
+
+[Exclude_hosts]
+exclude_hosts = []
+
+[Logging]
+loglevel = 1
+
