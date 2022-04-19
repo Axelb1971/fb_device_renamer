@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# regex IP identifier  ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}
 
 from webdriver_manager.chrome import ChromeDriverManager # pip install webdriver-manager
 from selenium import webdriver # pip install selenium
@@ -94,7 +93,6 @@ except NoSuchElementException:
 driver.implicitly_wait(implicitlyWait)
 
 my_log('Enter Login',2)
-
 # enter login password
 driver.find_element(By.ID, "uiPass").click()
 driver.find_element(By.ID, "uiPass").send_keys(fbpasswd)
@@ -121,20 +119,20 @@ passive = soup.find(id="PassiveNetwork")
 my_log('IPs of active and passive connections stored',2)
 act_pas_ips=active.find_all(prefid="ip") + passive.find_all(prefid="ip")
 
-# Auskommentieren, um den gesamten HTML Code in ein File zu schreiben
+# un-comment to dump website content to file
 # if (loglevel>=3):
 #     fileToWrite = open("debug_page_source", "w")
 #     fileToWrite.write(pageSource)
 #     fileToWrite.close()
 
-# Auslesen aller aktiven Verbindungen und schreiben in eine Datei für Debugzwecke über selenium und nicht pagesource
+# read all active connections and dump to file
 if (loglevel>=3):
     active = driver.find_element(By.XPATH,'//*[@id="ActiveNetwork"]')
     fileToWrite = open("debug_active", "w")
     fileToWrite.write(active.get_attribute('outerHTML'))
     fileToWrite.close()
 
-# Auslesen aller passiven Verbindungen und schreiben in eine Datei für Debugzwecke über selenium und nicht pagesource
+# read all passive connections and dump to file
 if (loglevel>=3):
     passive = driver.find_element(By.XPATH,'//*[@id="PassiveNetwork"]')
     fileToWrite = open("debug_passive", "w")
@@ -142,7 +140,7 @@ if (loglevel>=3):
     fileToWrite.close()
 
 my_log('check IPs',2)
-# Finden aller IP Adressen in der Geräteliste
+# find all IP addresses in network device list
 hosts_edit_ip = []
 hosts_edit_dns = []
 for act_pas in act_pas_ips:
@@ -172,7 +170,7 @@ for act_pas in act_pas_ips:
                 driver.quit()
                 sys.exit(2)
 
-        # Device name within FritzBox
+        # device name within FritzBox
         fb_dev_name = act_pas.parent.find(prefid="name")['title']
 
         # resolve IP address to DNS or hostsfile
@@ -189,7 +187,7 @@ for act_pas in act_pas_ips:
                     newname = query_results[0].to_text().split('.')[0]
 
             if (newname != fb_dev_name and len(newname)>0):
-                # IP address has a different name in the Fritzbox than in DNS - so change it later
+                # IP address has a different name in the Fritzbox than in DNS/ local hosts file - so change
                 hosts_edit_ip.append(ip)
                 hosts_edit_dns.append(newname)
                 my_log('edit: IP: {} FB-Name: {} DNS: {}'.format(ip,fb_dev_name,newname),2)
@@ -199,7 +197,7 @@ for act_pas in act_pas_ips:
     except NoSuchElementException:
         break
 
-# some statistics
+# some not needed statistics
 my_log('len of array hosts_edit_ip {}'.format(len(hosts_edit_ip)),2)
 my_log('len of array hosts_edit_dns {}'.format(len(hosts_edit_dns)),2)
 
@@ -232,7 +230,7 @@ for i in range(0,len(hosts_edit_ip),1):
 if (len(hosts_edit_ip) == 0):
     my_log('all hosts are already renamed - no change needed',1)
 
-# successful finished
+# successfully finished
 my_log('Finish',1)
 driver.quit()
 sys.exit(0)
