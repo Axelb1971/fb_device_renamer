@@ -6,15 +6,17 @@ networktablewait = 60
 alertwait = 120
 
 [FritzBox]
-fbip = 192.168.0.1
+fbip = 10.1.100.100
 fbuser = user
 fbpasswd = secret
 
 [Hostname_source]
-dnsserver = 192.168.0.2
+dnsserver = 10.1.100.10
+hostsfile = fb_hosts
+order = dnsserver hostsfile
 
 [Exclude_hosts]
-exclude_hosts = []
+exclude_hosts = ['10.1.100.201', '10.1.100.130', '10.1.100.128']
 
 [Logging]
 loglevel = 1
