@@ -103,8 +103,13 @@ driver.find_element(By.ID, "submitLoginBtn").click()
 WebDriverWait(driver,networktableWait).until(EC.visibility_of_element_located((By.ID, "lan"))).click()
 WebDriverWait(driver,networktableWait).until(EC.visibility_of_element_located((By.ID, "net"))).click()
 
-# wait for appearence of network list / waiting for passive networklist, because it appears delayed after active network list
-WebDriverWait(driver,networktableWait).until(EC.visibility_of_all_elements_located((By.XPATH,'//*[@id="PassiveNetwork"]/div/div[@id="Name"]')))
+# wait for appearence of network list / waiting for active & passive networklist, because passive is delayed after active network list
+WebDriverWait(driver,networktableWait).until(EC.visibility_of_all_elements_located((By.XPATH,'//*[@id="ActiveNetwork"]/div/div[@id="Name"]')))
+# wait for passive list, but if it is empty don't throw an error
+try:
+    WebDriverWait(driver,networktableWait).until(EC.visibility_of_all_elements_located((By.XPATH,'//*[@id="PassiveNetwork"]/div/div[@id="Name"]')))
+except:
+    pass
 my_log('aktive / passive Verbindungen sind da',2)
 
 # read complete contentbox to faster analyse content with BeautifulSoup
@@ -183,16 +188,19 @@ for act_pas in act_pas_ips:
 
             if "dnsserver" in resolve_order:
                 if resolve_order.split()[0] == "dnsserver" or len(newname) == 0:
-                    query_results = my_resolver.resolve(dns.reversename.from_address(ip),'PTR')
-                    newname = query_results[0].to_text().split('.')[0]
+                    try:
+                        query_results = my_resolver.resolve(dns.reversename.from_address(ip),'PTR')
+                        newname = query_results[0].to_text().split('.')[0]
+                    except dns.resolver.NXDOMAIN:
+                        newname = "no-dns-name"
 
             if (newname != fb_dev_name and len(newname)>0):
                 # IP address has a different name in the Fritzbox than in DNS/ local hosts file - so change
                 hosts_edit_ip.append(ip)
                 hosts_edit_dns.append(newname)
-                my_log('edit: IP: {} FB-Name: {} DNS: {}'.format(ip,fb_dev_name,newname),2)
+                my_log('edit: IP: {} FB-Name: {} New Name: {}'.format(ip,fb_dev_name,newname),2)
             else:
-                my_log('no change: IP: {} FB-Name: {} DNS: {}'.format(ip,fb_dev_name,newname),2)
+                my_log('no change: IP: {} FB-Name: {} New Name: {}'.format(ip,fb_dev_name,newname),2)
 
     except NoSuchElementException:
         break
@@ -224,8 +232,13 @@ for i in range(0,len(hosts_edit_ip),1):
 
         # wait until device table is renewed and available
         if (i < len(hosts_edit_ip)-1):
-            WebDriverWait(driver,networktableWait).until(EC.visibility_of_all_elements_located((By.XPATH,'//*[@id="PassiveNetwork"]/div/div[@id="Name"]')))
-    
+            # wait for appearence of network list / waiting for active & passive networklist, because passive is delayed after active network list
+            WebDriverWait(driver,networktableWait).until(EC.visibility_of_all_elements_located((By.XPATH,'//*[@id="ActiveNetwork"]/div/div[@id="Name"]')))
+            # wait for passive list, but if it is empty don't throw an error
+            try:
+                WebDriverWait(driver,networktableWait).until(EC.visibility_of_all_elements_located((By.XPATH,'//*[@id="PassiveNetwork"]/div/div[@id="Name"]')))
+            except:
+                pass
 
 if (len(hosts_edit_ip) == 0):
     my_log('all hosts are already renamed - no change needed',1)
